@@ -111,8 +111,7 @@ if [ $# != 0 ]; then
                 fi
             fi
         fi
-        if [ "${ver}" != latest ]&&wget -q --tries=1 --spider https://minecraft.azureedge.net/bin-linux/bedrock-server-"${ver}".zip; then
-            echo -e "[ 服务器：下载 ] 尝试下载(\e[33m${ver}\e[0m)"
+        if [ "${ver}" != latest ]&&echo -e "[ 服务器：下载 ] 尝试下载(\e[33m${ver}\e[0m)"&&wget -q --tries=1 --spider https://minecraft.azureedge.net/bin-linux/bedrock-server-"${ver}".zip; then
             if [ ! -f "${assets}/${ver}.zip" ]; then
                 echo -e "[ 服务器 ] 正在从官网下载(\e[33m${ver}\e[0m)"
                 file="${tmp}/${ver}.zip.$$"
