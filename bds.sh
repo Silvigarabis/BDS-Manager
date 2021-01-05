@@ -3,91 +3,71 @@ if [ "$(whoami)" = root ]; then
     echo -e "\e[31m注意，你正在使用root用户运行此脚本\e[0m"
 fi
 #路径及配置
-config () {
-    wd=`pwd`
-    bds="${wd}/.bds"
-    conf="${bds}/config"
-    tmp="${bds}/tmp"
-    assets="${bds}/assets"
-    mkdir -p "${wd}" "${bds}" "${tmp}" "${conf}" "${assets}"
-}
-config
+wd=`pwd`
+bds="${wd}/.bds"
+conf="${bds}/config"
+tmp="${bds}/tmp"
+assets="${bds}/assets"
+mkdir -p "${wd}" "${bds}" "${tmp}" "${assets}"
 trap '[ -n "`ls -A ${tmp}`" ]&&rm -rf ${tmp}&&echo [ INFO ] 临时文件已清理; exit' 0 1 2
-if [ -n "`ls -A ${conf}`" ]; then
-    for i in "${conf}"/*; do
-        eval ${i##*/}=`cat ${i}`
-    done 
-    unset i
-fi
 ####################
+config () {
+    case "$1" in 
+      read)shift 
+        local line conf file="-" key value
+        if [ -n "$1" ]; then 
+            file="$1"
+        fi 
+        conf="$(
+            (cat "${file}";echo) | while read line; do
+                if [[ "$line" =~ ^#.*$ || "$line" =~ ^.+=.*$ ]]; then
+                    echo "$line"
+                fi 
+            done 
+        )"
+        shift
+        if [[ $# >0 ]]; then
+            while(($#>0)); do
+                key="$1";shift
+                value+=`echo "${conf}"|grep "^${key}=.*$"`
+            done 
+            conf="$value"
+        fi 
+        echo -n "$conf"
+    ;;
+    "*")echo 不知道是什么，以后弄了再说 >&2
+    ;;
+    esac
+}
 version_list () {
 #版本：列出
     local f c t l d 
-    if [ $# = 0 ]; then
-        if [ -n "`ls ${assets}`" ]; then
-            echo "[ 服务器：版本 ] 当前已下载的版本"
-            for f in "${assets}"/* ; do
-                if [ -f "${f}" ]; then
-                    let c++
-                    echo "[${c}]: `basename -s .zip ${f}`"
-                fi 
-            done 
-        else
-            echo "[ 服务器：版本 ] 你还没有下载任何版本" >&2
-        fi 
-    elif [ "$1" = l ]; then 
-        version_list >&2 &
+    if [ -n "`ls ${assets}`" ]; then
+        echo "[ 服务器：版本 ] 当前已下载的版本"
         for f in "${assets}"/* ; do
             if [ -f "${f}" ]; then
-                    t="${t} ${f}"
-                    let c++
+                let c++
+                echo "[${c}]: `basename -s .zip ${f}`"
             fi 
         done 
-        wait $!
-        echo "l=($t)"
     else
-        case $1 in 
-        delete)eval `version_list l`
-            if [ -z "${l}" ]; then 
-                echo "没有可以删除的东西" >&2
-                return 2
-            else
-                if [ -z "$2" ]; then
-                    echo -n "请输入你要删除的版本或其编号 " 
-                    read c 
-                    if [ -f "${assets}/${c}.zip" ]; then 
-                        d="${assets}/${c}.zip"
-                    else
-                        if [ -n "${c}" ]; then 
-                            let c--
-                            eval d=${l[${c}]}
-                        fi 
-                    fi
-                else d="${assets}/$2.zip"
-                fi 
-                rm -f "${d}"
-            fi
-        ;;
-        *)echo 未开发
-        ;;
-        esac
+        echo "[ 服务器：版本 ] 你还没有下载任何版本" >&2
     fi
-}
+} 
+
 version_check () {
 #版本：检查
-    local status file="${tmp}/version_check.$$"
     echo "[ 服务器 ] 从官网检查更新中"
-    if wget -q -O "${file}" "https://www.minecraft.net/en-us/download/server/bedrock"; then
-        latest_version=`grep -oe 'https://minecraft.azureedge.net/bin-linux/bedrock-server-.*.zip' "${file}"`
+    latest_version=`wget -q -O - "https://www.minecraft.net/en-us/download/server/bedrock"|grep -oe 'https://minecraft.azureedge.net/bin-linux/bedrock-server-.*.zip'`
+    if [ -n "${latest_version}" ]; then
         latest="`basename -s .zip ${latest_version##*-}`"
         echo "${latest}" > "${conf}/latest"
         echo "${latest_version}" > "${conf}/latest_version"
         echo -e "[ 服务器 ] 最新的服务端版本为:\e[36m${latest}\e[0m"
         echo -e "[ 服务器 ] 下载链接:\e[36m${latest_version}\e[0m"
     else
-        status=$?
         echo -e "[ 服务器 ] \e[31m无法获取最新版本\e[0m" >&2
-        (exit ${status})
+        return $(wget -q -O - "https://www.minecraft.net/en-us/download/server/bedrock" &>/dev/null ; echo $?)
     fi
 }
 version_download () {
