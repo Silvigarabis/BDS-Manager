@@ -180,8 +180,12 @@ endless
 fi
 }
 
+
 "$@"
 exit
+
+
+#丢弃，等待以后整理
 arg () {
 if [ -n "$2" ]; then
     echo -e "出错:\e[31m$2\e[0m<<--此处"
