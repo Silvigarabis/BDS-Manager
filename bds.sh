@@ -1,3 +1,49 @@
+imc () {
+map=IMC
+ver=1.16.200.02
+###############
+wd=`pwd`
+bds="${wd}/.bds"
+log="${bds}/log/`date +%Y-%m-%d_%H:%M:%S`.txt"
+tmp="${bds}/tmp"
+mkdir -p "${wd}" "${bds}/log" "${tmp}"
+LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${bds}/usr/lib"
+PATH="${PATH}:${bds}/usr/bin"
+bin="${bds}/bds/${ver}"
+tail --retry -F "${log}" 2>/dev/null &
+if [ -f "${bin}" ]; then
+    chmod +x "${bin}"
+    while read line ; do
+        if [ "${line}" = stop ]||[[ "${line}" =~ ^/stop ]]; then 
+            echo 你可以在五秒内输入任意字符以取消 >&2
+            read -t 5 cancel 
+            if [ -z "${cancel}" ]; then
+                echo stop 
+                exit 
+            else 
+                echo 服务器将会继续运行 >&2
+                unset cancel
+            fi
+        elif [[ "${line}" =~ ^/ ]]; then 
+            echo "${line#/}" 
+        else "$SHELL" -c "${line}" &>>"${log}"
+        fi 
+    done | (cd "${wd}/server/${map}";"${bin}") | while read li ; do 
+        echo "[`date +'%Y-%m-%d %H:%M:%S'`]$li" 
+    done
+else 
+    echo 指定的版本不存在 >&2
+    (exit 127)
+fi
+}
+imc
+
+
+
+
+
+
+exit
 #警告
 if [ "$(whoami)" = root ]; then
     echo -e "\e[31m注意，你正在使用root用户运行此脚本\e[0m"
@@ -288,3 +334,263 @@ else
     exit 127
 fi
 yyyyyy
+
+
+:<<abd-6.0bds
+####################
+#好看不？
+#好看你赶紧写一个
+#我快写疯了
+#拜拜
+#233333
+####################
+bds_path () {
+#路径
+    export bds_home=`pwd`
+    export bds_storage="${bds_home}"/.bds
+    export assets="${bds_storage}"/assets
+    export server="${bds_home}"
+    export bds_tmp="${bds_storage}"/tmp
+    mkdir -p "${bds_home}" 
+    mkdir -p "${bds_storage}"
+    mkdir -p "${assets}"
+    mkdir -p "${bds_tmp}"
+    mkdir -p "${server}"
+}
+assets_update(){
+#版本：检查
+echo "[BDS:Version]尝试获取更新版本"
+if wget -q -O "${bds_tmp}"/version.html https://www.minecraft.net/en-us/download/server/bedrock; then
+    export latest=`grep -oe 'https://minecraft.azureedge.net/bin-linux/bedrock-server-.*.zip' "${bds_tmp}"/version.html`
+    local word=${latest##*-}
+    export latest=${word%.*}
+    echo -e "[BDS:Version]最新版本:\e[36m${latest}\e[0m"
+    echo -e "[BDS:Version]下载链接:\e[36mhttps://minecraft.azureedge.net/bin-linux/bedrock-server-${latest}.zip\e[0m"
+else
+    local state=$?
+    echo -e "[BDS:Version]\e[31m无法获取最新版本\e[0m"
+    exit ${state}
+fi
+}
+assets_download(){
+#版本：下载
+local file success_times=0 err_times=0
+while (($#>0)); do
+    local ver="$1"; shift
+    if wget -q --tries=1 --spider https://minecraft.azureedge.net/bin-linux/bedrock-server-"${ver}".zip; then
+        if [ ! -f "${assets}"/bedrock-server-"${ver}".zip ]; then
+            echo -e "[BDS:Assets]正在从官网下载(\e[33m${ver}\e[0m)"
+            file="${bds_tmp}"/bedrock-server-"${ver}".zip
+            wget https://minecraft.azureedge.net/bin-linux/bedrock-server-"${ver}".zip -O "${file}"
+            mv -f "${file}" "${assets}"
+            let success_times++
+        else
+            echo "[BDS:Assets]文件\"bedrock-server-${ver}.zip\"已存在"
+            let err_times++
+        fi
+    else
+        echo "[BDS:Download]无法找到\"${ver}\""
+        let err_times++
+    fi
+done
+echo -e "[BDS:Download]全部完成\n失败:${err_times}\n成功:${success_times}"
+}
+server_create(){
+#创建服务器
+if [ -z "$1" ]||(($#>2)); then
+    bds_help server_create
+    exit 128
+fi
+local ver state
+if [ -n "$2" ]; then
+    ver="$2"
+    echo "[BDS:Server]服务器版本被指定为\"$2\""
+else
+    echo "[BDS:Server]未指定创建服务器的版本，默认使用最新版本"
+    if [ -z "${latest}" ]; then
+        echo "[BDS:Server]未检测到最新的版本，开始检查"
+        assets_update
+        state=$?
+        if [ ${state} != 0 ]; then
+            echo "[BDS:Server]出错，尝试指定一个版本"
+            exit ${state}
+        else
+            assets_download "${latest}"
+        fi
+    else
+        echo "[BDS:Server]最新版本为\"${latest}\""
+    fi
+    ver="${latest}"
+fi
+local server="${server}"/"$1" assets="${assets}/bedrock-server-${ver}.zip"
+if [ ! -f ${assets} ]; then
+    echo "[BDS:Server]版本\"${ver}\"不存在"
+    exit 127
+fi
+if [ ! -e "${server}" ]; then
+    echo "[BDS:Server]尝试创建\"$1\""
+    mkdir -p "${server}"
+    echo "[BDS:Unzip]解压${assets}"
+    unzip -qd "${server}" "${assets}"
+    state=$?
+    if [ ${state} != 0 ]; then
+        echo "[BDS:Unzip]解压出错"
+        exit ${state}
+    else
+        echo "[BDS:Unzip]解压成功"
+        echo "[BDS:Server]文件夹\"$1\"已创建"
+    fi
+else
+    echo "[BDS:Server]文件\"$1\"已存在"
+    exit 1
+fi
+}
+bds_help(){
+echo -e "BDS辅助v0.1\n"
+if test -n "$1"; then
+    case "$1" in
+        server_create)cat<<endless
+----创建一个服务器文件夹----
+用法：server_create <名称> [版本]
+endless
+        ;;
+        *)echo "$1未找到"
+        ;;
+    esac
+fi
+}
+bds_shell () {
+local cmd state path
+echo 输入exit退出
+while true; do
+    echo -n "BDS;"
+    path=`pwd`
+    if [ "${state}" = 0 ]; then
+        echo -e "\e[32m\c"
+    else
+        echo -e "\e[31m\c"
+    fi
+    echo -e "${state}\e[0m:\c"
+    if [ "$path" = "$HOME" ]; then
+        echo -n "~"
+    elif [[ "$path" = *"$HOME"* ]]; then
+        echo -n "~"
+        echo -n "$path"|sed "s/$(echo "$HOME"|sed 's/\//\\\//g')//g"
+    else
+        echo -n "$path"
+    fi
+    echo -n " "
+    read cmd
+    if [ "${cmd}" != exit ]; then
+        ${cmd}
+        state=$?
+    else
+        echo 已退出BDS-SHELL
+        exit ${state}
+    fi
+done
+}
+arg_err () {
+    echo -e 出错:\\e[31m"$@"\\e[0m'<<'--此处
+    exit 1
+}
+###############
+#运行的部分
+###############
+:<<一会继续改
+bds_home=`pwd`
+if [ ! -d "${bds_home}"/.bds ]||[ ! -f "${bds_home}"/bds.txt ]; then 
+    echo 你还没有进行初始化
+    printf 输入bds进行初始化\ 
+    read input
+    if [ "$input" = bds ]; then
+        bds_path
+    else
+        echo 已退出
+        exit 1
+    fi
+fi
+exit 0
+一会继续改
+
+
+
+
+
+
+#警告
+if [ "$(whoami)" = root ]; then
+    echo -e \\e[31m注意，你正在使用root用户运行此脚本\\e[0m
+fi
+#命令解释器
+bds_path
+command(){
+case "$1" in
+    -c)
+        shift
+        "$@"
+    ;;
+    --shell)
+        bds_shell
+    ;;
+    assets)
+        shift
+        case "$1" in
+            list)
+                ls "$assets"
+            ;;
+            *)
+                arg_err "$1"
+            ;;
+        esac
+    ;;
+    server)
+        shift
+        case "$1" in
+            add)
+                :
+            ;;
+            list)
+                local list
+                local count=0
+                echo 即将列出服务器文件夹
+                for list in `ls "${wd}"`; do
+                    if [ -d "${wd}"/"${list}" ]; then
+                        let count++
+                        echo [${count}]: "${list}"
+                    fi
+                    
+                done
+                if [ ${count} = 0 ]; then
+                    echo -e \\e[31m没有找到服务器文件夹
+                    return 1
+                else
+                    return 0
+                fi
+            ;;
+            remove)
+                :
+            ;;
+            start)
+                :
+            ;;
+            *)
+                arg_err "$1"
+            ;;
+        esac
+    ;;
+    version|help|-h|--help|--version)
+        help
+    ;;
+    "")
+        echo 请输入参数
+        help
+        exit 128
+    ;;
+    *)
+        arg_err "$1"
+    ;;
+esac
+}
+command "$@"
+abd-6.0bds
