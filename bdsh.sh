@@ -30,7 +30,7 @@ tail -F "${log}" 2>/dev/null &
 if [ -f "${bin}" ]; then
     chmod +x "${bin}"
     while read line ; do
-        if [[ -n $(echo ${line}|awk '/^[/]?stop$/') ]]; then 
+        if [[ -n $(echo ${line}|awk '/^[\/]?stop$/') ]]; then 
             echo 你可以在五秒内输入任意字符以取消 >&2
             read -t 5 cancel 
             if [ -z "${cancel}" ]; then
