@@ -1,20 +1,36 @@
-imc () {
+#!/bin/bash
+#cmd
+trap 'echo 再见了; exit' 0 1 2
+#Basic Value
+WD="$(pwd)"
+BDSH="${WD}/.bds"
+TMP="${BDS}/tmp"
+CONFIG="${BDS}/config"
+VERSION="bdsh-8.0 build"
+BDS_ASSETS="${BDS}/assets"
+#Warn
+if [[ "$(id -u)" = 0 ]]; then
+    echo -e "\e[31m注意，你正在使用root用户运行此脚本\e[0m" >&2
+fi
+if [ ! "$BASH" ]; then
+    echo -e "\e[33m你可能没有使用BASH运行此脚本\e[0m" >&2
+fi
+#################
+#函数部分
+#################
+function imc() {
 map=IMC
 ver=1.16.200.02
-###############
-wd=`pwd`
-bds="${wd}/.bds"
-log="${bds}/log/`date +%Y-%m-%d_%H:%M:%S`.txt"
-tmp="${bds}/tmp"
-mkdir -p "${wd}" "${bds}/log" "${tmp}"
-LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${bds}/usr/lib"
-PATH="${PATH}:${bds}/usr/bin"
-bin="${bds}/bds/${ver}"
-tail --retry -F "${log}" 2>/dev/null &
+log="${BDSH}/log/`date +%Y-%m-%d_%H:%M:%S`.txt"
+mkdir -p "${WD}" "${BDSH}/log" "${TMP}"
+LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${BDSH}/usr/lib"
+PATH="${PATH}:${BDSH}/usr/bin"
+bin="${BDSH}/bds/${ver}"
+tail -F "${log}" 2>/dev/null &
 if [ -f "${bin}" ]; then
     chmod +x "${bin}"
     while read line ; do
-        if [ "${line}" = stop ]||[[ "${line}" =~ ^/stop ]]; then 
+        if [[ -n $(echo ${line}|awk '/^[/]?stop$/') ]]; then 
             echo 你可以在五秒内输入任意字符以取消 >&2
             read -t 5 cancel 
             if [ -z "${cancel}" ]; then
@@ -28,7 +44,7 @@ if [ -f "${bin}" ]; then
             echo "${line#/}" 
         else "$SHELL" -c "${line}" &>>"${log}"
         fi 
-    done | (cd "${wd}/server/${map}";"${bin}") | while read li ; do 
+    done | (cd "${WD}/server/${map}";"${bin}") | while read li ; do 
         echo "[`date +'%Y-%m-%d %H:%M:%S'`]$li" 
     done
 else 
@@ -36,27 +52,25 @@ else
     (exit 127)
 fi
 }
-imc
+##################
+function update_bds() {
+    BDS_LATEST_ASSET="$(wget -qO - 'https://www.minecraft.net/en-us/download/server/bedrock'|grep -oe 'https://minecraft.azureedge.net/bin-linux/bedrock-server-.*.zip')"
+    BDS_LATEST_VERSION="$(echo ${BDS_LATEST_ASSET}|sed -e 's/.*-//g' -e 's/\.zip//')"
+}
+function config_map(){
+    find "$WD" -maxdepth 2 -regex "$WD/[^.].*?/.bdsh_config" -type f | while read c; do
+        cd $(basename "${c}")
+    done
+}
+#################
+#运行的部分
+#################
+"$@"
 
-
-
-
-
-
+######################
+####	以下全部丢弃	####
+######################
 exit
-#警告
-if [ "$(whoami)" = root ]; then
-    echo -e "\e[31m注意，你正在使用root用户运行此脚本\e[0m"
-fi
-#路径及配置
-wd=`pwd`
-bds="${wd}/.bds"
-conf="${bds}/config"
-tmp="${bds}/tmp"
-assets="${bds}/assets"
-mkdir -p "${wd}" "${bds}" "${tmp}" "${assets}"
-trap '[ -n "`ls -A ${tmp}`" ]&&rm -rf ${tmp}&&echo [ INFO ] 临时文件已清理; exit' 0 1 2
-####################
 config () {
     case "$1" in 
       read)shift 
@@ -100,11 +114,10 @@ version_list () {
         echo "[ 服务器：版本 ] 你还没有下载任何版本" >&2
     fi
 } 
-
 version_check () {
 #版本：检查
     echo "[ 服务器 ] 从官网检查更新中"
-    latest_version=`wget -q -O - "https://www.minecraft.net/en-us/download/server/bedrock"|grep -oe 'https://minecraft.azureedge.net/bin-linux/bedrock-server-.*.zip'`
+    
     if [ -n "${latest_version}" ]; then
         latest="`basename -s .zip ${latest_version##*-}`"
         echo "${latest}" > "${conf}/latest"
@@ -225,23 +238,15 @@ endless
     esac
 fi
 }
-
-
-"$@"
-exit
-
-
-#丢弃，等待以后整理
 arg () {
 if [ -n "$2" ]; then
     echo -e "出错:\e[31m$2\e[0m<<--此处"
 fi
 return "$1" &>/dev/null
 }
-###############
-#运行的部分
-###############
+:<<commandDescription
 #命令解释器
+#废了
 case "$1" in
     version)shift
     case "$1" in
@@ -292,13 +297,9 @@ case "$1" in
     *)bds_help
     arg 2 "$1";;
 esac
-
-
-
-
-
-
-:<<yyyyyy
+commandDescription
+:<<imc_last
+#imc旧版
 #这里的可以自由修改，当然，指定的版本必须存在
 map=IMC
 ver=1.16.201.02
@@ -333,10 +334,10 @@ else
     echo 所选择版本未找到
     exit 127
 fi
-yyyyyy
-
-
+imc_last
 :<<abd-6.0bds
+#6.0 build时的bdsh
+#以后处理
 ####################
 #好看不？
 #好看你赶紧写一个
@@ -359,7 +360,7 @@ bds_path () {
 }
 assets_update(){
 #版本：检查
-echo "[BDS:Version]尝试获取更新版本"
+echo "[BDS:Version]尝试获取更新版本the
 if wget -q -O "${bds_tmp}"/version.html https://www.minecraft.net/en-us/download/server/bedrock; then
     export latest=`grep -oe 'https://minecraft.azureedge.net/bin-linux/bedrock-server-.*.zip' "${bds_tmp}"/version.html`
     local word=${latest##*-}
