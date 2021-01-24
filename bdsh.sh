@@ -1,5 +1,5 @@
 #!/bin/bash
-#cmd
+#Cmd
 trap 'echo 再见了; exit' 0 1 2
 #Basic Value
 WD="$(pwd)"
