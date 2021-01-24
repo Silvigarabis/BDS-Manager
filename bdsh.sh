@@ -19,38 +19,69 @@ fi
 #函数部分
 #################
 function imc() {
-map=IMC
-ver=1.16.200.02
-log="${BDSH}/log/`date +%Y-%m-%d_%H:%M:%S`.txt"
-mkdir -p "${WD}" "${BDSH}/log" "${TMP}"
-LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${BDSH}/usr/lib"
-PATH="${PATH}:${BDSH}/usr/bin"
-bin="${BDSH}/bds/${ver}"
-tail -F "${log}" 2>/dev/null &
-if [ -f "${bin}" ]; then
-    chmod +x "${bin}"
-    while read line ; do
-        if [[ -n $(echo ${line}|awk '/^[\/]?stop$/') ]]; then 
-            echo 你可以在五秒内输入任意字符以取消 >&2
-            read -t 5 cancel 
-            if [ -z "${cancel}" ]; then
-                echo stop 
-                exit 
-            else 
-                echo 服务器将会继续运行 >&2
-                unset cancel
+    local map=IMC
+    local ver=1.16.200.02
+    local LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${BDSH}/usr/lib"
+    local PATH="${PATH}:${BDSH}/usr/bin"
+    local bin="${BDSH}/bds/${ver}"
+    mkdir -p "${WD}" "${BDSH}/log" "${TMP}"
+    cd "${WD}/server/${map}"
+    mkdir .bdsh
+    if [[ -f ${bin} ]]; then
+        if [[ -x ${bin} || chmod +x "${bin}" ]]; then
+            local status=$?
+            echo 出现未知错误
+            return ${status}
+        fi
+    else
+        echo 未找到指定的版本
+        return 127
+    fi
+    (
+        local reboot=5 li
+        trap "if ((reboot>1)); then echo 尝试重启服务器; let reboot--; bds_server; else echo 多次重启失败，无法解决; return; fi" 42
+        trap "kill -n 2 \${bds_process}" 2
+        trap "kill -n 15 \${bds_process}" 15
+        trap "if [[ \${auto_reboot} = 1 ]]; then echo 已启用自动重启; bds_server; fi" 41
+        while read li ; do
+            if [[ ${li} =~ ^/stop$ ]]; then 
+                echo 你可以在五秒内输入任意字符以取消
+                if read -t 5 -n 1; then
+                    echo stop >"${cmd}"
+                    exit
+                else 
+                    echo 服务器将会继续运行
+                fi
+            elif [[ "${li}" =~ ^/.*$ ]]; then 
+                echo "${li#/}" >"${cmd}"
+            else
+                "${SHELL}" -c "${li}"
+            fi 
+        done
+    )
+}
+function bds_server()
+{
+    bds_main=$$
+    cmd=.bdsh/cmd.$$
+    touch "${cmd}"
+    bds_server_main
+    bds_process=$!
+}
+function bds_server_main(){
+#服务器进程
+    {
+        tail -F "${cmd}" | (
+            "${bin}"
+            if [ $? = 0 ]; then
+                echo 服务器已关闭
+                kill -n 41 ${bds_main}
+            else
+                echo 服务器崩溃
+                kill -n 42 ${bds_main}
             fi
-        elif [[ "${line}" =~ ^/ ]]; then 
-            echo "${line#/}" 
-        else "$SHELL" -c "${line}" &>>"${log}"
-        fi 
-    done | (cd "${WD}/server/${map}";"${bin}") | while read li ; do 
-        echo "[`date +'%Y-%m-%d %H:%M:%S'`]$li" 
-    done
-else 
-    echo 指定的版本不存在 >&2
-    (exit 127)
-fi
+        ) 
+    } &
 }
 ##################
 function update_bds() {
