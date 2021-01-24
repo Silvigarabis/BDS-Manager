@@ -85,9 +85,9 @@ function bedrock_dedicated_server_main(){
     } &
 }
 ##################
-function update_bds() {
-    BDS_LATEST_ASSET="$(wget -qO - 'https://www.minecraft.net/en-us/download/server/bedrock'|grep -oe 'https://minecraft.azureedge.net/bin-linux/bedrock-server-.*.zip')"
-    BDS_LATEST_VERSION="$(echo ${BDS_LATEST_ASSET}|sed -e 's/.*-//g' -e 's/\.zip//')"
+function update_assets_bedrock_dedicated_server() {
+    ASSET_BEDROCK_DEDICATED_SERVER_LATEST="$(wget -qO - 'https://www.minecraft.net/en-us/download/server/bedrock'|grep -oe 'https://minecraft.azureedge.net/bin-linux/bedrock-server-.*.zip')"
+    ASSET_BEDROCK_DEDICATED_SERVER_LATEST_VERSION="$(echo ${BDS_LATEST_ASSET}|sed -e 's/.*-//g' -e 's/\.zip//')"
 }
 function config_map(){
     find "$WD" -maxdepth 2 -regex "$WD/[^.].*?/.bdsh_config" -type f | while read c; do
