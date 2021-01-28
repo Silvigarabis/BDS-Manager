@@ -51,7 +51,7 @@ imc () { #此函数专为Imeaces-Minecraft-Bedrock-Server设计
     trap "echo '接收到崩溃信号';if ((reboot>1)); then echo '尝试重启服务器'; let reboot--; \${server}; else echo '多次重启失败，无法解决'; return; fi" 42
     trap "if [[ \${bds_stop} != 1 && \${auto_reboot} = 1 ]]; then echo '已启用自动重启'; \${server}; else exit; fi" 41
     ${server} #服务器运行
-    while read li ; do
+    while read -r li ; do
         if [[ ${li} =~ ^/?stop$ ]]; then 
             echo "你可以在五秒内输入任意字符并回车以取消"
             if (read -t 5 can; [[ -z ${can} ]]); then
@@ -61,12 +61,25 @@ imc () { #此函数专为Imeaces-Minecraft-Bedrock-Server设计
             else 
                 echo "服务器将会继续运行"
             fi
-        elif [[ "${li}" =~ ^/.*$ ]]; then 
-            echo "${li#/}" >"${cmd}"
+        elif [[ ${li} =~ ^/.*$ ]]; then 
+            if [[ ${li} = / ]]; then
+                echo 使用exit退出
+                while read -r li; do
+                    if [[ ${li} = exit ]]; then
+                        echo 已退出
+                        break
+                    else echo "${li}" >"${cmd}"
+                    fi
+                done 
+            else echo "${li#/}" >"${cmd}"
+            fi
         else
             bash -c "${li}"
-        fi 
+        fi
     done
+    echo 正在关闭服务器
+    echo "stop" >"${cmd}"
+    wait ${bds_process}
 }
 bedrockDedicatedServer () {
     bds_main=$$
