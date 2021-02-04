@@ -2,13 +2,13 @@
 #################
 #################
 #信号
-trap "echo '再见了'; exit" 0 1 2
+trap 'echo "再见了"; rm -rf "${tmp}"; exit' 0 1 2
 #################
 #################
 #变量
 WD="$(pwd)"
 BDSH="${WD}/.bds"
-TMP="${BDS}/tmp"
+tmp="${BDS}/tmp"
 CONFIG="${BDS}/config"
 ASSETS="${BDS}/assets"
 VERSION="bdsh-8.0 build"
@@ -46,7 +46,7 @@ imc () { #此函数专为Imeaces-Minecraft-Bedrock-Server设计
         echo "未找到指定的版本" >&2
         return 127
     fi
-    local reboot=5 li server="bedrockDedicatedServer"
+    local reboot=5 li server="bedrockDedicatedServer_old"
     #信号接收
     trap "echo '接收到崩溃信号';if ((reboot>1)); then echo '尝试重启服务器'; let reboot--; \${server}; else echo '多次重启失败，无法解决'; return; fi" 42
     trap "if [[ \${bds_stop} != 1 && \${auto_reboot} = 1 ]]; then echo '已启用自动重启'; \${server}; else exit; fi" 41
@@ -81,13 +81,60 @@ imc () { #此函数专为Imeaces-Minecraft-Bedrock-Server设计
     echo "stop" >"${cmd}"
     wait ${bds_process}
 }
-bedrockDedicatedServer () {
+bedrockDedicatedServer () { #服务器启动/关闭/发送命令/重启 等
+    #启动守护进程
+    if [[ ! ${BDS_DAEMON_PROCESS} ]]; then
+        bedrockDedicatedServerDaemon #服务器守护进程（等待中）
+    fi
+    #处理基础变量
+    local option="$1" 
+    local name="${2:-$$}"
+    local wd="${PWD}"
+    case "${option}" in #判断操作
+        start) #操作：启动服务器 设置变量 创建输入输出文件
+        local directory="${3:-.}"
+        local input="${tmp}/input.${name}${RANDOM}"
+        local output="${tmp}/output.${name}${RANDOM}"
+        local binary="${4:-${latest_binary:-\$undefined}}"
+        mkdir -p "${cmd%/*}" "${out%/*}"
+        : > "${input}"
+        : > "${output}"
+        cd "${directory}" #启动服务器
+        if [[ ${binary} = \$undefined && ! -f ./bedrock_server ]]; then #判断是否有可用服务端
+            printf "\e[31mServer Binary File not found!\e[0m\n"
+            return 127
+        else #启动
+            tail -F "${input}" | "${binary}" > "${output}" &
+            echo "('${name}' '$!' 'cmd=${input}' out='${output}')" > "${BDS_LIST}"
+        fi;;
+        stop) #操作：终止或暂停一个服务器
+        local server=`grep -m 1 -oe "('${name}' '[0-9]*' '.*' '.*')" "${BDS_LIST}"`
+        local option="$2"
+        case "${option}" in 
+            continue)local signal=18
+            forcestop)local signal=9
+            forcestop=1
+            pause)local signal=19
+            "")local stop=1
+            *)return 1
+            ;;
+        esac
+        if [[ ${stop} = 1 ]]; then
+            bedrockDedicatedServer send stop "${server}"
+        else 
+            kill -${signal} ${server[2]}
+        fi;;
+    esac
+}
+bedrockDedicatedServerDaemon () {
+}
+bedrockDedicatedServer_old () {
     bds_main=$$
     cmd=.bdsh/cmd.$$
     : > "${cmd}"
-    bedrockDedicatedServerProcess
+    bedrockDedicatedServerProcess_old
 }
-bedrockDedicatedServerProcess () {
+bedrockDedicatedServerProcess_old () {
 #服务器进程
     tail -F "${cmd}" 2>/dev/null | {
         "${bin}"
@@ -112,7 +159,7 @@ updateAssets_bedrockDedicatedServer () {
     ASSET_BEDROCK_DEDICATED_SERVER_LATEST_VERSION="$(echo ${ASSET_BEDROCK_DEDICATED_SERVER_LATEST}|sed -e 's/.*-//g' -e 's/\.zip//')"
 }
 config_map () {
-    find "$WD" -maxdepth 2 -regex "$WD/[^.].*?/.bdsh_config" -type f | while read c; do
+    find "${WD}" -maxdepth 2 -regex "${WD}/[^.].*?/.bdsh_config" -type f | while read c; do
         cd $(basename "${c}")
     done
 }
@@ -163,9 +210,9 @@ createServer_bedrockDedicatedServer () {
             return 1
         fi
     else 
-        echo "你需要为创建bedrockDedicatedServer指定一个名字"
-        echo "用法: $FUNCNAME <名字> [版本]"
-        echo "如不指定，默认使用 \${ASSET_BEDROCK_DEDICATED_SERVER_LATEST_VERSION} "
+        echo "你需要为创建bedrockDedicatedServer指定一个名字" >&2
+        echo "用法: $FUNCNAME <名字> [版本]" >&2
+        echo "如不指定版本，默认使用 \${ASSET_BEDROCK_DEDICATED_SERVER_LATEST_VERSION} " >&2
         return 1
     fi
 }
