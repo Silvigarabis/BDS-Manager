@@ -27,10 +27,6 @@ fi
 #################
 #################
 #函数
-bedrockDedicatedServerDaemon () {
-    BDS_LIST="${tmp}"
-}
-##################
 config_map () {
     find "${WD}" -maxdepth 2 -regex "${WD}/[^.].*?/.bdsh_config" -type f | while read c; do
         cd $(basename "${c}")
