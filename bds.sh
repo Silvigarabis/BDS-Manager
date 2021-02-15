@@ -18,28 +18,19 @@ BDS_ASSETS="${BDS}/assets"
 #################
 #################
 #警告
-if [[ $(id -u) = 0 ]]; then
-    printf "\e[31m注意，你正在使用root用户运行此脚本\e[0m\n" >&2
-fi
 if [[ ! ${BASH} ]]; then
     printf "\e[33m你可能没有使用BASH运行此脚本\e[0m\n" >&2
 fi
 #################
 #################
 #函数
-config_map () {
-    find "${WD}" -maxdepth 2 -regex "${WD}/[^.].*?/.bdsh_config" -type f | while read c; do
-        cd $(basename "${c}")
-    done
-}
 #################
 updateAssets_bedrockDedicatedServer () {
-    ASSET_BEDROCK_DEDICATED_SERVER_LATEST="$(wget -qO - 'https://www.minecraft.net/en-us/download/server/bedrock'|grep -oe 'https://minecraft.azureedge.net/bin-linux/bedrock-server-.*.zip')"
-    if [[ ! ${ASSET_BEDROCK_DEDICATED_SERVER_LATEST} ]]; then
+    ASSET_BEDROCK_DEDICATED_SERVER_LATEST_VERSION=`wget -qO - 'https://www.minecraft.net/en-us/download/server/bedrock'|grep -m 1 -oe 'bedrock-server-.*.zip'|sed -e 's/.*-//g' -e 's/\.zip//'`
+    if [[ ! ${ASSET_BEDROCK_DEDICATED_SERVER_LATEST_VERSION} ]]; then
         printf "\e[33m获取最新版本时出错\e[0m\n"
         return 1
     fi
-    ASSET_BEDROCK_DEDICATED_SERVER_LATEST_VERSION="$(echo ${ASSET_BEDROCK_DEDICATED_SERVER_LATEST}|sed -e 's/.*-//g' -e 's/\.zip//')"
 }
 
 #################
