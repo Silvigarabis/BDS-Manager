@@ -1,6 +1,0 @@
-#!/bin/bash
-rm -f bds.sh
-sh="#!/bin/bash
-"
-sh+=`find * -name "*.sh" | while read li; do cat "$li"; echo; done`
-echo "$sh" >bds.sh
