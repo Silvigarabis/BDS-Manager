@@ -5,16 +5,29 @@ trap 'echo "再见了"; rm -rf "${tmp}"; exit' 0 1 2
 #################
 #################
 #变量
+#启动路径
 WD="$(pwd)"
-BDSH="${WD}/.bds"
+
+#储存路径[0]:当前储存路径[1]:家储存路径
+BDSH=("${WD}/.bds" "${HOME}/.bds")
+
+#临时文件路径 如果有可读写的临时目录则使用
 if [[ -r ${TMPDIR} && -w ${TMPDIR} ]]; then
     tmp="${TMPDIR}/bdsh.${$}-${RANDOM}"
-else tmp="${BDS}/tmp"
+else tmp="${BDSH}/tmp"
 fi
-CONFIG="${BDS}/config"
-ASSETS="${BDS}/assets"
-VERSION="bdsh-8.0 build"
-BDS_ASSETS="${BDS}/assets"
+
+#配置文件
+CONFIG="${BDSH}/config"
+
+#资源文件路径
+ASSETS="${BDSH}/assets"
+
+#脚本版本（从2021/2/17开始计算）
+VERSION=`
+    basename "${0}" |
+    sed "s/\.(sh|rc)$//"
+`" build 1"
 #################
 #################
 #警告
@@ -26,9 +39,13 @@ fi
 #函数
 #################
 updateAssets_bedrockDedicatedServer () {
-    ASSET_BEDROCK_DEDICATED_SERVER_LATEST_VERSION=`wget -qO - 'https://www.minecraft.net/en-us/download/server/bedrock'|grep -m 1 -oe 'bedrock-server-.*.zip'|sed -e 's/.*-//g' -e 's/\.zip//'`
+    ASSET_BEDROCK_DEDICATED_SERVER_LATEST_VERSION=`
+        wget -qO - 'https://www.minecraft.net/en-us/download/server/bedrock'|
+        grep -m 1 -oe 'bedrock-server-.*.zip'|
+        sed -e 's/.*-//g' -e 's/\.zip//'
+    `
     if [[ ! ${ASSET_BEDROCK_DEDICATED_SERVER_LATEST_VERSION} ]]; then
-        printf "\e[33m获取最新版本时出错\e[0m\n"
+        printf "\e[33m获取最新版本时出错\e[0m\n"  
         return 1
     fi
 }
@@ -68,7 +85,7 @@ bedrockDedicatedServer () { #服务器启动/关闭/发送命令/重启 等
         fi
         #启动
         if cd "${directory}"; then
-            tail -F ${input} | ${binary} > ${output}" &
+            tail -F "${input} | ${binary} > ${output}" &
             
             local process=$!
             cmd=`ps -hocmd "${process}"`
@@ -151,7 +168,8 @@ bedrockDedicatedServerDaemon () {
     } &>/dev/null &
     BDS[2]=$!
 }
-#################createServer_bedrockDedicatedServer () {
+#################
+createServer_bedrockDedicatedServer () {
     local server="$1"
     local serverVersion="$2"
     if [[ -n ${server} ]]; then
