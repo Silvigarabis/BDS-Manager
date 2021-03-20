@@ -1,5 +1,6 @@
 # Minecraft Bedrock Server Manager
-## 介绍  
-表示面板服也得有尊严  
+
+为了使面板服可以管理多个服务器  
+此项目诞生  
+
 仍在编写  
-咕咕咕
