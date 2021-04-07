@@ -43,8 +43,6 @@ START-SERVER(){ #启动服务器
 }
 
 #懒了，随便弄弄吧
-p(){
-}
 #启动第一个
 VERSION=1.16.210.06
 NAME=YoniMC
@@ -53,7 +51,9 @@ SERVER[1,0]=${NAME}
 SERVER[1,1]=${COPROC[0]}
 SERVER[1,2]=${COPROC[1]}
 SERVER[1,3]=${COPROC_ID}
-p
+
+
+
 
 #启动第二个
 VERSION=1.16.210.06
@@ -83,6 +83,8 @@ while read -r; do
         echo 无法找到 ${SERVER[${num},0]}
       fi
     else
+      echo 将会为所有服务器发送以下命令：
+      echo "${REPLY#/}"
       for ((c=1;c>${#SERVER[@]};c++)); do
         echo "${REPLY#/}" >&${SERVER[¢{c},2]}
       done
