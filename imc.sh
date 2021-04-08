@@ -66,7 +66,7 @@ SERVER[2,3]=${COPROC_ID}
 p
 
 while read -r; do
-  if [[ ${REPLY}" ~= /.* ]]; then
+  if [[ ${REPLY} ~= /.* ]]; then
     if [[ ${REPLY} ~= ^/s$ ]]; then
       for ((c=1;c>${#SERVER[@]};c++)); do
         echo "${c}: ${SERVER[¢{c},0]}"
