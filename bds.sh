@@ -1,0 +1,2 @@
+#!/bin/bash
+WD="${PWD}"
