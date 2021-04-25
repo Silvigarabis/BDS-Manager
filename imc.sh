@@ -1,7 +1,7 @@
 WD="${PWD}"
 BDSH="${WD}/.bds"
 TMPDIR="${BDSH}/tmp"
-mkdir -p "${TMPDIR}"
+mkdir -p "${BDSH}" "${TMPDIR}"
 LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${BDSH}/lib"
 
 #服务端
@@ -14,8 +14,11 @@ BDS_BIN="${BDSH}/libexec/bds/version"
 MAIN_PROC=$$
 
 SERVER-START() {
-  echo "启动“${SERVER}”"
   local BINARY="${BDS_BIN}/${VERSION}"
+  local SERVER
+  local SIGNAL
+  local MAIN_PROC
+  echo "启动“${SERVER}”"
   coproc {
     cd "${WD}/${SERVER}"
     "${BINARY}"
@@ -67,7 +70,11 @@ STOP(){
 exec-cmd(){
   if [[ ! $EXEC ]]; then
     coproc bash
-    cat <&${COPROC[0]}
+    {
+      coproc {
+        cat <&${COPROC[0]} >&5
+      }
+    } 5>&1
     EXEC=(
       "${COPROC_PID}"
       "${COPROC[0]}"
@@ -77,7 +84,8 @@ exec-cmd(){
     unset EXEC
     exec-cmd "$@"
   else
-    echo "$@">
+    echo "$@">&${EXEC[2]}
+  fi
 }
 
 #主要的用来处理的
