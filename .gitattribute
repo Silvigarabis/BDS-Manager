@@ -1,0 +1,4 @@
+text=lf
+
+*.sh text
+*.md text
