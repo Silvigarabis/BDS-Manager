@@ -1,7 +1,7 @@
 WD="${PWD}"
 BDSH="${WD}/.bds"
 TMPDIR="${BDSH}/tmp"
-mkdir -p "${BDSH}" "${TMPDIR}"
+mkdir -p "${BDSgit H}" "${TMPDIR}"
 LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${BDSH}/lib"
 
 #服务端
@@ -13,17 +13,26 @@ BDS_BIN="${BDSH}/libexec/bds/version"
 
 MAIN_PROC=$$
 
+{
+  coproc {
+    cat >&5
+  }
+} 5>&1
+OUTPUT=${COPROC[1]}
+
 SERVER-START() {
+  #set var 'SERVER' and 'SIGNAL' before use
   local BINARY="${BDS_BIN}/${VERSION}"
-  local SERVER
-  local SIGNAL
-  local MAIN_PROC
   echo "启动“${SERVER}”"
   coproc {
     cd "${WD}/${SERVER}"
-    "${BINARY}"
-    echo "${SERVER}关闭，时间：`date +%Y%m%d\ %H%M%S`；状态：$?"
-    kill -${SIGNAL} ${MAIN_PROC}
+    SERV_PROC=$$
+    cat | {
+      "${BINARY}"
+      echo "${SERVER}关闭，时间：$(date +%Y%m%d\ %H%M%S)；状态：$?"
+      kill -${SIGNAL} ${MAIN_PROC}
+      kill -9 ${SERV_PROC}
+    }
   }
 }
 
@@ -38,7 +47,7 @@ s1() {
     "${COPROC[0]}"
     "${COPROC[1]}"
   )
-  
+
 }
 
 s2() {
@@ -55,9 +64,22 @@ s2() {
 }
 
 s1
-s2
+coproc {
+  cat <&${S1[2]} |
+    while read -r; do
+      echo "${S1}:${REPLY}"
+    done >&${OUTPUT}
+}
 
-STOP(){
+s2
+coproc {
+  cat <&${S2[2]} |
+    while read -r; do
+      echo "${S2}:${REPLY}"
+    done >&${OUTPUT}
+}
+
+STOP() {
   STOP=1
   echo "正在关闭服务器"
   echo stop >&${S1[3]}
@@ -67,35 +89,36 @@ STOP(){
   kill -15 +${MAIN_PROC}
 }
 
-exec-cmd(){
+exec-cmd() {
   if [[ ! $EXEC ]]; then
     coproc bash
-    {
-      coproc {
-        cat <&${COPROC[0]} >&5
-      }
-    } 5>&1
     EXEC=(
       "${COPROC_PID}"
       "${COPROC[0]}"
       "${COPROC[1]}"
     )
-  elif ps ${EXEC[0]} &>/dev/null; then
+    {
+      coproc {
+        cat <&${EXEC[1]} >&5
+      }
+    } 5>&1
+    exec-cmd "$@"
+  elif ! ps ${EXEC[0]} &>/dev/null; then
     unset EXEC
     exec-cmd "$@"
   else
-    echo "$@">&${EXEC[2]}
+    echo "$@" >&${EXEC[2]}
   fi
 }
 
 #主要的用来处理的
 while read -r; do
   if [[ ${REPLY} =~ ^/?stop$ ]]; then
-    stop
-  elif [[ ${REPLY} =~ ^/s1\s.*$ ]]; then 
-    echo "${REPLY#* }" >&${S1[3]}
-  elif [[ ${REPLY} =~ ^/s2\s.*$ ]]; then 
-    echo "${REPLY#* }" >&${S2[3]}
+    STOP
+  elif [[ ${REPLY} =~ ^/s1\ .*$ ]]; then
+    echo "${REPLY#*\ }" >&${S1[3]}
+  elif [[ ${REPLY} =~ ^/s2\ .*$ ]]; then
+    echo "${REPLY#*\ }" >&${S2[3]}
   elif [[ ${REPLY} = /s1 ]]; then
     printf "使用exit或\"Ctrl + d\"退出\n你当前进入的是${S1}的控制终端\n"
     while read -r; do
