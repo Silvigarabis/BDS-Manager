@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# this script does not set to readable
+
 ORIGIN=${ORIGIN:-$(cat "$0")}
 WD=${WD:-${PWD}}
 
@@ -20,4 +22,51 @@ version(){
   esac
 }
 
-"$@"
+server_start(){
+# start server that setuped in correct path
+  local bds_config="$(awk '/^($|[A-Za-z_]([A-Za-z0-9_]*)?=.*|#.*)/' .bds_config)"
+  local server_name="$(
+    { sed -nE 's/name=(.*)/\1/gp' | tail -n 1; } <<EOF
+${bds_config}
+EOF
+  )"
+  local server_type="$(
+    { sed -nE 's/type=(.*)/\1/g;s/\x20/_/gp' | tail -n 1; } <<EOF
+${bds_config}
+EOF
+  )"
+  "server_type_${server_type}"
+}
+
+server_type_bedrock_dedicated(){
+  ls
+}
+# Imeaces@guxi:~$ cat /server/IMC/start.sh
+# #!/bin/bash
+# if [ -f server-info.properties ]; then
+  # while read -r; do
+    # eval "$REPLY"
+  # done<<EOM
+# `awk '/^($|[A-Za-z_]([A-Za-z0-9_]*)?=.*|#.*)/' server-info.properties`
+# EOM
+# fi
+# if [ -n "$start" ]; then
+  # eval "$start"
+# else
+  # printf "start command not found!\n"
+  # exit 1
+# fi
+# Imeaces@guxi:~$ cat /server/IMC/server-info.properties
+# #comment
+# name=IMC
+# server-version=(1 17 0)
+# type=(bedrock dedicated)
+# port=(40233)
+# version=1.17.0
+# bin="bedrock_server-${version}"
+# jebwkqn2n2n2kldo
+# start=./bedrock_server
+# 
+# Imeaces@guxi:~$
+eval "$@"
+

@@ -1,0 +1,9 @@
+#comment
+name=IMC
+server-version=(1 17 0)
+type=bedrock dedicated
+port=(40233)
+version=1.17.0
+bin="bedrock_server-${version}"
+jebwkqn2n2n2kldo
+start=./bedrock_server
